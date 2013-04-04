@@ -1,0 +1,4 @@
+#!/bin/zsh
+[[ -x =exiftool ]] || {zenity --error --text "exiftool is not installed"; exit 1}
+local ETOPTS=$(zenity --title="EXIFtool Arguments" --entry --entry-text='-AllDates-=00:00:00')
+exiftool -P -m -overwrite_original ${(z)ETOPTS}  "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"

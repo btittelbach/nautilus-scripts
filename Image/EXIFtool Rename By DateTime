@@ -1,0 +1,11 @@
+#!/bin/zsh
+[[ -x =exiftool ]] || {zenity --error --text "exiftool is not installed"; exit 1}
+local default_prepend="Taken Where"
+local default_append='Taken By Whom'
+local img_prepend="$(zenity --title="Prepend to Filename" --entry --entry-text="$default_prepend")"
+local img_append="$(zenity --title="Append to Filename" --entry --entry-text="$default_append")"
+[[ $img_prepend == $default_prepend ]] && img_prepend=""
+[[ $img_append == $default_append ]] && img_append=""
+[[ -n $img_prepend && $img_prepend[-1] != " " ]] && img_prepend="$img_prepend "
+[[ -n $img_append && $img_append[0] != " " ]] && img_append=" $img_append"
+exiftool -m '-DateTimeOriginal>FileModifyDate' '-FileName<CreateDate' -d "${img_prepend}%Y-%m-%d %Hh%Mm%S%%-c${img_append}.%%e" "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"
