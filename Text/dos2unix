@@ -1,0 +1,13 @@
+#
+#
+# This script removes ^M carriage return characters from dos text files for proper unix formatting
+# Placed in the public domain 2/2002 by Shane T. Mueller
+for arg
+do
+	uname=`date +/tmp/$arg-%m%d%Y.%H%M%S`
+        ## uname should really be checked to see if it exists, and regenerated
+	##  otherwise
+	
+   tr -d '\015' < "$arg"  > "$uname"
+   mv "$uname" "./$arg" 
+done

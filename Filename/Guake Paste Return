@@ -1,0 +1,4 @@
+#!/bin/zsh
+local -a FILES
+FILES=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
+dbus-send --session --type=method_call --dest=org.guake.RemoteControl /org/guake/RemoteControl org.guake.RemoteControl.execute_command string:"${${(q)FILES[@]}}" >> /tmp/nautilus.files

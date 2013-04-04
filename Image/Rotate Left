@@ -1,0 +1,9 @@
+#!/bin/bash
+IFS=$'\n'
+for i in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS; do
+    TMPFILE=$(mktemp)
+    PREVDATE=$(date -r "$i")
+	jpegtran -rotate 270 -copy all -outfile "$TMPFILE" "$i"
+    touch -d "$PREVDATE" "$TMPFILE"
+	mv "$TMPFILE" "$i"
+done

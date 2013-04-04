@@ -1,0 +1,44 @@
+#!/usr/bin/perl -w
+
+@files = split("\n",$ENV{"NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"});
+my $resstr="";
+my $curdir = qx{pwd};
+foreach my $file (@files)
+{
+	my $filedir = $file;
+	my $filename = $file;
+	$filedir =~ s/\/[^\/]*$//;
+	$filename =~ s/^.*\///;
+	if ($filedir ne "")
+	{
+		chdir($filedir);
+	}
+	else
+	{
+		chdir($curdir);
+	}
+
+	if (-d "./.svn")
+	{
+		$resstr .= qx{svn add "$filename" 2>&1};
+	}
+
+	if (system("hg","root") == 0)
+	{
+		$resstr .= qx{hg add "$filename" 2>&1};
+	}
+    
+	if (-d "./cvs" || -d "./CVS")
+	{
+		$resstr .= qx{cvs add "$filename" 2>&1};
+	}
+    
+	if (system("git","status") != 128)
+	{
+		$resstr .= qx{git add "$filename" 2>&1};
+	}
+}
+if ($resstr ne "")
+{
+	qx{echo "$resstr" | zenity --text-info}
+}

@@ -1,0 +1,22 @@
+
+# moveup:  moves the selected file(s) to parent directory
+# (if able)
+IFS=$'\n'
+for filename in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS ; 
+do
+  arg=$(basename $filename)
+  dir=${filename/%$arg/}
+  cd "$dir"
+  if [ -f ../"$arg" ]
+  then
+      MSG="Filename: '$arg' already exists in parent directory."
+       if    
+         gdialog --title "Overwrite?" --defaultno --yesno "$MSG" 200 100     
+       then
+         mv "$arg" ../"$arg"
+       fi
+  else
+   mv "$arg" ../"$arg"
+  fi
+done
+

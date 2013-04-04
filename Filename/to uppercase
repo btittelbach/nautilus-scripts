@@ -1,0 +1,14 @@
+
+# uppercase: Renames input file to uppercase.
+for arg 
+do
+ tmp=`echo "$arg" | tr '[a-z]' '[A-Z]'`
+
+ if [ -f $tmp ]
+ then
+   msg="Uppercase filename: '$tmp' already exists."
+   gdialog --msgbox "$msg" 100 100
+ else
+   mv "$arg" "$tmp"
+ fi
+done

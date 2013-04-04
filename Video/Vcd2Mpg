@@ -1,0 +1,28 @@
+#!/bin/bash
+
+VCDGEAR=vcdgear16
+
+IFS=$'\n'
+
+2>&1
+
+for file in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS
+do
+	F_EXT=$(echo $file | sed 's/.*\.//');
+	if [ $F_EXT = "bin" ]; then
+		$VCDGEAR -raw2mpg $file $(echo $file | sed "s/\\.$F_EXT\$/.mpg/") | awk 'RS="þ "; fflush();' |zenity --progress --auto-close --text="$file"
+	fi
+	if [ $F_EXT = "cue" ]; then
+		$VCDGEAR -cue2mpg $file $(echo $file | sed "s/\\.$F_EXT\$/.mpg/") | awk 'RS="þ "; fflush();' |zenity --progress --auto-close --text="$file"
+#	 zenity --text-info  <&4
+	fi
+	if [ $F_EXT = "dat" ]; then
+		#$VCDGEAR -dat2mpg $file $(echo $file | sed "s/\\.$F_EXT\$/.mpg/") | zenity --text-info &
+		$VCDGEAR -dat2mpg $file $(echo $file | sed "s/\\.$F_EXT\$/.mpg/") | awk 'RS="þ "; fflush();' |zenity --progress --auto-close --text="$file"
+	fi
+	if [ $F_EXT = "nrg" ]; then
+		#$VCDGEAR -nrg2mpg $file $(echo $file | sed "s/\\.$F_EXT\$/.mpg/") | zenity --text-info &
+		$VCDGEAR -nrg2mpg $file $(echo $file | sed "s/\\.$F_EXT\$/.mpg/") | awk 'RS="þ "; fflush();' |zenity --progress --auto-close --text="$file"
+	fi
+
+done

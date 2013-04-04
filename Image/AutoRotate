@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+IFS=$'\n'
+for i in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS; do
+    PREVDATE=$(date -r "$i")
+	jhead -autorot $i
+    touch -d "$PREVDATE" "$i"
+done

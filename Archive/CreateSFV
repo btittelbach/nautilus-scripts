@@ -1,0 +1,5 @@
+#!/bin/bash
+#cd $NAUTILUS_DIR
+SFVNAME="$(zenity --entry)"
+IFS=$'\n'
+test -n "$SFVNAME" && /usr/bin/bsdsfv -cad "$SFVNAME" $* | zenity --list --column "Results"

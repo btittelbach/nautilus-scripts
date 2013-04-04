@@ -1,0 +1,6 @@
+#!/usr/bin/perl -X
+my @files=split(/\s*\n\s*/,$ENV{"NAUTILUS_SCRIPT_SELECTED_URIS"});
+my $attachments=join(",",@files);
+map {s/.*\///} @files;
+my $subject=join(", ",@files);
+qx{thunderbird -compose "subject='$subject',attachment='$attachments'"};

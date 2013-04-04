@@ -1,0 +1,6 @@
+#!/bin/bash
+for f in $NAUTILUS_SCRIPT_SELECTED_URIS; do
+a=$(gnomevfs-cat "$f" | wc -w)
+b=$(gnomevfs-cat "$f" | wc -l)
+gdialog --backtitle "Word Count Script"  --msgbox "$f\nWords: $a\nLines:$b\n" 25 20 
+done

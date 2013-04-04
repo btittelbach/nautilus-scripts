@@ -1,0 +1,14 @@
+
+# lowercase: Changes input to lowercase.
+for arg 
+do
+ tmp=`echo "$arg" | tr '[A-Z]' '[a-z]'`
+
+ if [ -f $tmp ]
+ then
+   msg="Lowercase filename: '$tmp' already exists."
+   gdialog --msgbox "$msg" 100 100
+ else
+   mv "$arg" "$tmp"
+ fi
+done

@@ -1,0 +1,817 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# gallery-uploader
+#
+# gallery-uploader is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3.
+#
+# gallery-uploader is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with gallery-uploader; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+#
+# Copyright © 2009-2010 Pietro Battiston <me@pietrobattiston.it>
+
+# Name=Upload pictures to Gallery
+# Name[it]=Carica immagini su Gallery
+
+from __future__ import division
+
+__version__ = '2.4'
+
+import gtk, gobject
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument( "-d",
+                     "--debug",
+                     action="store_true",
+                     help="Print debug information." )
+
+parser.add_argument( "files", nargs="*", metavar="FILES" )
+
+options = parser.parse_args()
+
+
+gobject.threads_init()
+
+import os, sys
+from urllib2 import URLError
+from locale import strcoll
+
+from galleryuploader_lib.dialogs import build_builder, error_dialog, chooser, areyousurer, fatal_error
+from galleryuploader_lib.config import STUFF_DIR, config, profiles, CONFIG_PATH, PROFILES_PATH, NoOptionError
+from galleryuploader_lib.editor import Editor
+
+try:
+    from M2Crypto import m2urllib2, SSL
+    SSLVerificationError = SSL.Checker.SSLVerificationError
+    SSLError = SSL.SSLError
+    M2CRYPTO_AVAILABLE = True
+except:
+    SSLVerificationError = SSLError = None
+    M2CRYPTO_AVAILABLE = False
+
+try:
+    from galleryremote.gallery import Gallery, GalleryException
+    GALLERY_REMOTE = True
+except ImportError:
+    GALLERY_REMOTE = False
+
+try:
+    import gnomekeyring
+    assert( gnomekeyring.is_available() )
+    GNOME_KEYRING = True
+except:
+    GNOME_KEYRING = False
+
+# 'password' _must_ be before 'keyring_id', otherwise in the process of saving
+# info, an obsolete keyring_id could be saved.
+config_fields = ['url', 'user', 'password', 'keyring_id']
+GUI_fields = ['name', 'url', 'user', 'password']
+
+if options.debug:
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+
+class Site(object):
+    """
+    Every instance of this class is a profile - a combination of options to
+    access a given Gallery instance somewhere.
+    In the "build_treestore" method (which is run once the profile has been
+    selected for the upload) it gains a "gallery" method, of class
+    galleryremote.gallery.Gallery, which is then used for all remote operations.
+    """
+    def __init__(self, name=None):
+        if name:
+            self.name = self.saved_name = name
+            for field in config_fields:
+                try:
+                    setattr(self, field, profiles.get(self.name, field))
+                except NoOptionError:
+                    pass
+        else:
+            for field in ['name', 'saved_name'] + config_fields:
+                setattr(self, field, '')
+        
+        self.keyring_access_problem = False
+
+    def fill_from_form(self):
+        """
+        Ask the user for details about the profile.
+        """
+        getter_builder = build_builder('form')
+        getter = getter_builder.get_object('getter')
+        error_label = getter_builder.get_object('error_label')
+
+        inputs = {}
+        
+        buttons = {}
+
+        def check_validity(*args):
+            valid = True
+            errors = []
+
+            # Not just rolling on "inputs" because order (of errors) counts.
+            for field_name in GUI_fields:
+                cont = inputs[field_name].get_text()
+                if not cont:
+                    valid = False
+
+                if field_name == 'name':
+                    if cont in profiles.sections() and not cont == self.name:
+                        valid = False
+                        errors.append( _('Name \"%s\" already taken.') % cont)
+                elif field_name == 'url':
+                    url_start = ['http://', 'https://']
+                    matches = [cont.startswith(prefix) for prefix in url_start]
+                    if cont and not any( matches ):
+                        valid = False
+                        prefixes = ", ".join(['"%s"' % pr for pr in url_start])
+                        errors.append(
+           _('The URL should start with one of the following:\n%s.') % prefixes)
+
+            for button in buttons:
+                buttons[button].set_sensitive(valid)
+            
+            if errors:
+                error_label.set_text('\n'.join(errors))
+            else:
+                error_label.set_text('')
+        
+        buttons['save'] = getter_builder.get_object( 'but_save' )
+        
+        if not self.get_password():
+            self.password = ''
+        
+        for field_name in GUI_fields:
+            field = getter_builder.get_object('inp_' +  field_name)
+            if field:
+                inputs[field_name] = field
+            if self.name:
+                # Gallery is not new: fill it with information.
+                if field_name == 'name':
+                    inputs[field_name].set_text(self.name)
+                else:
+                    inputs[field_name].set_text( getattr( self, field_name ) )
+                
+        for field_name in inputs:
+            inputs[field_name].connect('changed', check_validity)
+            
+        response = getter.run()
+        if response in [0, gtk.RESPONSE_DELETE_EVENT]:
+            getter.destroy()
+            return
+        
+        for field_name in inputs:
+            setattr( self, field_name, inputs[field_name].get_text() )
+
+        self.save()
+
+        getter.destroy()
+        return self.name
+    
+    def gnome_keyring_dont_tell_again(self, *args):
+        """
+        Remember not to warn again about missing GNOME Keyring.
+        """
+        if not config.has_section( 'gnomekeyring' ):
+           config.add_section( 'gnomekeyring' )
+        config.set( 'gnomekeyring', 'alert_if_absent', "False" )
+        
+        c_file = file( CONFIG_PATH, 'w' )
+        config.write( c_file )
+        c_file.close()
+    
+    def save(self):
+        """
+        Save changes to the profile.
+        """
+
+        if not profiles.has_section( self.name ):
+            profiles.add_section( self.name )
+
+        for field in config_fields:
+            if field == 'password':
+                if self.keyring_access_problem:
+                    # So: we expect that a password is stored in the keyring,
+                    # but we were not able to look at it. Hence, two
+                    # possibilities:
+                    # - the user gaves us a password again - we'll remember this
+                    # - the password is still '' - we save nothing
+                    if not self.password:
+                        continue
+                saved_to_keyring = False
+                if GNOME_KEYRING:
+                    # If there is gnomekeyring, we will try to use it - possibly
+                    # also migrating to it from plain text.
+                    if self.save_password_to_gnomekeyring():
+                        saved_to_keyring = True
+                if not saved_to_keyring:
+                    if not config.has_option( 'gnomekeyring', 'alert_if_absent' )\
+                        or config.getboolean( 'gnomekeyring', 'alert_if_absent' ) is 'False':
+                        builder = build_builder( 'nognomekeyring' )
+                        dialog = builder.get_object( 'dialog' )
+                        dont_tell = builder.get_object( 'dont_tell' )
+                        dialog.run()
+                        if dont_tell.get_active():
+                            self.gnome_keyring_dont_tell_again()
+                        dialog.hide()
+                        profiles.set( self.name, 'password', self.password )
+            else:
+                if hasattr( self, field ):
+                    profiles.set( self.name, field, str( getattr( self, field ) ) )
+                        
+        if self.saved_name and self.saved_name != self.name:
+            # The name was changed; delete old section
+            profiles.remove_section(self.saved_name)
+
+        p_file = file( PROFILES_PATH, 'w')
+        profiles.write( p_file )
+        p_file.close()
+    
+    def get_password(self):
+        """
+        Set self.password to the right value.
+        """
+        self.keyring_access_problem = False
+        if GNOME_KEYRING and hasattr( self, 'keyring_id' ) and self.keyring_id:
+            keyring = gnomekeyring.get_default_keyring_sync()
+            info = gnomekeyring.get_info_sync( keyring )
+            if info.get_is_locked():
+#               gnomekeyring.unlock_sync( keyring, '' )
+# https://bugs.launchpad.net/ubuntu/+source/gnome-python-desktop/+bug/432882/comments/3
+                try:
+                    tmp = gnomekeyring.item_create_sync( keyring,
+                                                         gnomekeyring.ITEM_GENERIC_SECRET,
+                                                         "gallery-uploader dummy",
+                                                         {}, "password",
+                                                         True )
+                except gnomekeyring.CancelledError:
+                    self.keyring_access_problem = True
+                    return False
+                gnomekeyring.item_delete_sync( keyring, tmp )
+            try:
+                item = gnomekeyring.item_get_info_sync(keyring, int( self.keyring_id) )
+                self.password = item.get_secret()
+            except gnomekeyring.BadArgumentsError:
+                # No such key - not fatal (user may have deleted it).
+                # It means any operation will fail with "wrong password", and
+                # the user will go back to the details form.
+                self.password = ''
+        
+        # Nothing to do if we are not using GNOME Keyring - "self.password"
+        # is already set to the right value.
+
+        return True
+    
+    def save_password_to_gnomekeyring(self):
+        keyring = gnomekeyring.get_default_keyring_sync()
+        description = _("Password for user %(user)s on gallery instance at %(url)s") % self.__dict__
+        try:
+            new_item_id = gnomekeyring.item_create_sync(
+                                                 keyring,
+                                                 gnomekeyring.ITEM_NETWORK_PASSWORD,
+                                                 description,
+                                                 {
+                                                  # FIXME: version-agnosticity:
+                                                  'protocol': "gallery2",
+                                                  'server': self.url,
+                                                  'user': self.user
+                                                 },
+                                                 self.password,
+                                                 True )
+
+        except gnomekeyring.CancelledError:
+            self.keyring_access_problem = True
+            return False
+
+        # The first check just copes with old - or manually edited -
+        # configurations missing the "keyring_id" field.
+        if hasattr( self, 'keyring_id' ) and self.keyring_id and self.keyring_id != new_item_id:
+            # This happens when some of the parameters have changed. Ideally, we
+            # would just change the attributes of the old keyring item... but
+            # it's apparently not possible. All we can do is delete the old one.
+            # There is no problem of missing data however (there is a 1-1
+            # mapping between profiles and keyring items), just a counter - the
+            # one that assigns item_ids to new keyring items in GnomeKeyring -
+            # that at each change of a parameter increases unnecessarily.
+            try:
+                gnomekeyring.item_delete_sync(keyring, int( self.keyring_id ) )
+            except gnomekeyring.BadArgumentsError:
+                # No such key - no worry (user may have deleted it).
+                pass
+        
+        self.keyring_id = new_item_id
+        
+        return True
+    
+    def build_treestore(self):
+        """
+        This is the first method that does some remote activity - downloading
+        the list of (writable) albums, and hence first creates the "gallery"
+        member, of class galleryremote.gallery.Gallery.
+        """
+        # FIXME: version-agnosticity:
+        self.gallery = Gallery(self.url, 2)
+        self.gallery.login( self.user, self.password )
+
+        albums = self.gallery.fetch_albums_prune()
+        
+        store = gtk.TreeStore(str, int)
+        
+        tree = self.build_tree( albums )
+        
+        self.build_treestore_recurse( tree, store )
+        
+        return store
+        
+    def build_tree(self, albums):
+        """
+        When albums are fetched, they are simply a dictionary that gives a
+        mapping between album names (ids) and album properties.
+        Among those properties, is "parent", which is here used to construct
+        the complete hierarchy, building a tree through the new properties
+        "gallery-uploader_parent" (a dict) and "gallery-uploader_children" (a
+        list of dicts).
+        """
+        for album in albums.values():
+            album['gallery-uploader_children'] = []
+        
+        for album in albums.values():
+            try:
+                parent = albums[album['parent']]
+                parent['gallery-uploader_children'].append( album )
+                album['gallery-uploader_parent'] = parent
+            except KeyError:
+                root = album
+        
+        orderer = (lambda x, y: cmp(x['title'], y['title']) )
+        
+        for album in albums.values():
+            album['gallery-uploader_children'].sort( orderer )
+        
+        return root
+        
+    def build_treestore_recurse(self, branch, store):
+        """
+        Once "build_tree" has reconstructed parental relations between albums,
+        this is where we populate the TreeStore.
+        It is called recursively on each album ("branch").
+        """
+        try:
+            parent = branch['gallery-uploader_parent']
+            parent_iter = parent['iter']
+        except KeyError:
+            # root:
+            parent, parent_iter = (None, None)
+
+
+        row = ( branch['title'], int( branch['name'] ) )
+        # Actually, the order the albums come from Gallery is nearer to the
+        # alphabetic order than the opposite:
+        branch['iter'] = store.insert( parent_iter, 10000, row )
+        
+        for child in branch['gallery-uploader_children']:
+            self.build_treestore_recurse(child, store)
+    
+    def get_album_url(self, album_name):
+        """
+        Given the name of an album, retrieve its full URL..
+        """
+        if self.gallery.version == 2:
+            url = self.gallery.url + '?g2_itemId=%s' % album_name
+        else:
+            url = "Not implemented for Gallery version different than 2!"
+        
+        return url
+
+class Progress(object):
+    """
+    Executor of an action, which shows, while the action goes on, a progress
+    bar, then leaves.
+    The action is defined through overriding "act", which is repeatly called.
+    The progress is described by setting members "fraction" and "text".
+    The former is a float from 0 to 1. When it is None, the progressbar just
+    floats back and forth.
+    The latter is a string to show over the bar, or None to show nothing.
+    
+    Since gtk.Dialogs cannot be ran from inside threads, a mechanism to delay
+    errors reporting is provided: when one is detected inside "run", it is saved
+    in the "error" member. That member must be (None, or) a tuple containing
+    1) a title. If this is the string 'fatal', then the error closes
+       gallery-uploader. Otherwise, it will be primary text of the error message
+       shown
+    2) some additional text. It can be a traceback, or a more descriptive
+       explanation of what happened.
+    3) optionally, a parameter that tells what that additional text is. If that
+       parameter is present _and_ it evaluates to False, then that text will be
+       shown in a Label (good for human messages) instead than in a TextView
+       (much better for tracebacks).
+    """
+    def __init__(self, what, title, message):
+        dialog_builder = build_builder('subprocess')
+        self.dialog = dialog_builder.get_object('dialog')
+        self.dialog.set_title(title)
+        self.label = dialog_builder.get_object('label')
+        self.label.set_text(message)
+
+        self.progress = dialog_builder.get_object('progress')
+        
+        self.what = what
+        self.fraction = None
+        self.text = None
+        self.ran = False
+        self.error = None
+        
+        self.timeout_id = gobject.timeout_add(100, self.update)
+        resp = self.dialog.run()
+        if resp == gtk.RESPONSE_DELETE_EVENT:
+            self.dialog.destroy()
+            gobject.source_remove(self.timeout_id)
+            self.error = True
+
+    def update(self):
+        if not self.ran:
+            self.act()
+            self.ran = True
+
+        alive = self.alive()
+
+        if not alive:
+            self.dialog.destroy()
+            if self.error:
+                if self.error[0] == 'fatal':
+                    fatal_error( self.error[1:] )
+                dialog = error_dialog(*self.error)
+            return
+        
+        if self.fraction != None:
+            self.progress.set_fraction(self.fraction)
+        else:
+            self.progress.pulse()
+        
+        if self.text:
+            self.progress.set_text(self.text)
+        return True
+
+class ThreadedProgress(Progress):
+    """
+    An executor working in a new thread.
+    Only "run" needs to be defined additionally. Notice that in "run", "self" is
+    the ThreadedProgress, _not_ (as usual) the Thread object.
+    """
+
+    def act(self):
+        import threading
+        self.thread = threading.Thread()
+           
+        # Here we pass "run" that is already bound to "self": this is why the
+        # thread's "self" is the ThreadedProgress.
+        self.thread.run = self.run
+        self.thread.start()
+        
+    def alive(self):
+        try:
+            return self.thread.is_alive()
+        except AttributeError:
+            # Python < 2.6
+            return self.thread.isAlive()
+
+class InfoLoader(ThreadedProgress):
+    """
+    Load info for a gallery.
+    Argument "what" is a 2-uple (gallery_name, options).
+    """
+    def run(self):
+        site = self.what
+        try:
+            self.model = site.build_treestore()
+        except URLError, msg:
+            self.error = _('Network error'), _("The URL %s is currently not reachable, or does not point to a Gallery installation.") % site.url, False
+            return
+        except GalleryException, msg:
+            self.error = _('Error accessing the Gallery instance:'), str( msg ), False
+            return
+        
+        # If there is no M2Crypto, then SSLVerificationError and SSLError are
+        # None... and that's fine (the branch becomes useless).
+        except (SSLVerificationError, SSLError) as exc:
+            self.error = _('Error in the SSL connection:'), str( exc ), False
+            return
+        
+        except Exception as exc:
+            import traceback
+            err = traceback.format_exc()
+            self.error = 'fatal', err
+        
+        self.finished = True
+ 
+class Uploader(ThreadedProgress):
+    """
+    Upload pictures.
+    Argument "what" is a 3-ple (album_id, options, list_of_files).
+    """
+    def run(self):
+        album_id, site, files = self.what
+        site.delete = False
+        total = len(files)
+        count = 1
+        for a_file, caption, description in files:
+            self.fraction = (count - 1) / total
+            self.text = _("Uploading picture %(count)d of %(total)d") % locals()
+            try:
+                print "upload!"
+                site.gallery.add_item( str( album_id ), a_file, caption, description )
+            except URLError:
+                self.error = _('Network error'), _("The URL %s doesn't exist\nor is currently not reachable.") % site.url, False
+                return
+            except GalleryException, msg:
+                self.error = _('Error uploading to Gallery:'), str( msg ), False
+                return
+            except Exception:
+                import traceback
+                err = traceback.format_exc()
+                self.error = 'fatal', err
+            count += 1
+ 
+        self.finished = True
+
+def name_from_title(title):
+    """
+    Album name must only contain alphanumeric chars, underscores and hyphens.
+    So here we "purify" the title.
+    """
+    name = ''
+    for i in title.replace(' ', '_'):
+        if i.isalnum():
+            name += i
+    
+    # Pathologic - quite unrealistic
+    if not name:
+        name = '0'
+    
+    return name
+
+def new_album( button, tree, site ):
+    sorted_store = tree.get_model()
+    store = sorted_store.get_model()
+    selection = tree.get_selection()
+    ordered_iter = selection.get_selected()[1]
+    parent_iter = sorted_store.convert_iter_to_child_iter( None, ordered_iter )
+    parent_title, parent_id = store[parent_iter]
+    dialog_builder = build_builder( 'newalbum' )
+    dialog = dialog_builder.get_object( 'dialog' )
+    title_entry = dialog_builder.get_object( 'title' )
+    description_entry = dialog_builder.get_object( 'description' )
+    header = dialog_builder.get_object( 'header' )
+    header.set_markup( _("""Please enter the title of the new album.
+It will be created as a subalbum of <b>%s</b>.""") % parent_title )
+    ok = dialog_builder.get_object( 'ok' )
+    
+    def sensitivity(*args):
+        ok.set_sensitive( bool( title_entry.get_text() ) )
+    
+    title_entry.connect( 'changed', sensitivity )
+    
+    resp = dialog.run()
+    if resp == gtk.RESPONSE_DELETE_EVENT:
+        dialog.hide()
+        return
+    
+    title = title_entry.get_text()
+    desc_buffer = description_entry.get_buffer()
+    description = desc_buffer.get_text( desc_buffer.get_start_iter(),
+                                        desc_buffer.get_end_iter() )
+    
+    name = name_from_title( title )
+    new_album_id = site.gallery.new_album( str( parent_id ), name, title, description )
+    
+    row = (title, int( new_album_id ))
+    
+    new_iter = store.insert( parent_iter, 0, row )
+    new_path = store.get_path( new_iter )
+    tree.expand_to_path( new_path )
+    new_ordered_iter = sorted_store.convert_child_iter_to_iter( None, new_iter )
+    selection.select_iter( new_ordered_iter )
+    tree.scroll_to_cell( new_path )
+    dialog.hide()
+    
+def upload_to_site(site, files):
+    """
+    Take a configuration of a gallery installation and upload 
+    """
+    
+    if not files:
+        error_dialog(_('No files provided'), _('There were no files selected for upload.'))
+        parser.print_usage()
+        sys.exit(1)
+    
+    if site.url.startswith('https://') and not M2CRYPTO_AVAILABLE:
+        builder = build_builder('nossl')
+        dialog = builder.get_object( 'dialog' )
+        resp = dialog.run()
+        dialog.hide()
+        if resp:
+            galleries_catalog(files)
+            return
+    
+    # The process of getting the password from GNOME Keyring must happen before
+    # the login but in the main thread:
+    if not site.get_password():
+        # If there is any message I want to show of the form "hey, user, you
+        # didn't unlock the keyring, you suck", this will be _inside_
+        # get_password. But then, there is probably no need: the user is already
+        # ashamed of what he did.
+        galleries_catalog( files )
+        return
+
+    loader = InfoLoader((site), _('Refreshing'), _('Please wait while information about remote albums hierarchy is downloaded.'))
+
+    if loader.error:
+        galleries_catalog(files)
+        return
+    
+    dialog, tree, buttons = chooser( _('Album selection'), _('Select the album in which to upload the pictures:'))
+    
+    model = loader.model
+    sorted_model = gtk.TreeModelSort( model )
+    sorted_model.set_sort_func( 0, (lambda m, x, y : strcoll( m[x][0], m[y][0] )) )
+    tree.set_model( sorted_model )
+    sorted_model.set_sort_column_id( 0, gtk.SORT_ASCENDING )
+
+    # The two commented lines that follow would sort by age:
+    #sorted_model.set_sort_func( 1, (lambda m, x, y : cmp( m[x][1], m[y][1] )) )
+    #sorted_model.set_sort_column_id( 1, gtk.SORT_ASCENDING )
+    
+    col = gtk.TreeViewColumn()
+    cell = gtk.CellRendererText()
+    col.pack_start(cell)
+    col.add_attribute(cell, 'text', 0)
+    tree.append_column(col)
+    tree.expand_row((0), False)
+    
+    buttons['expand'].connect('clicked', (lambda args : tree.expand_all()))            
+    buttons['collapse'].connect('clicked', (lambda args : tree.collapse_all()))            
+    buttons['new_album'].connect( 'clicked', new_album, tree, site )
+
+    for button in ['new', 'delete', 'edit']:
+        buttons[button].hide()
+
+    response = dialog.run()
+
+    if response == gtk.RESPONSE_DELETE_EVENT:
+        dialog.destroy()
+        sys.exit(0)
+    elif response == -2:
+        dialog.destroy()
+        galleries_catalog(files)
+        return
+
+    selection_iter = tree.get_selection().get_selected()[1]
+    selected_id = sorted_model.get_value( selection_iter, 1 )
+    dialog.hide()
+    
+    editor = Editor()
+    files_info = editor.run( files )
+    
+    uploader = Uploader((selected_id, site, files_info), _('Uploading'), _('Uploading pictures. Please be patient.'))
+    
+    if uploader.error:
+        galleries_catalog(files)
+    else:
+        dialog_builder = build_builder('bye')
+        dialog = dialog_builder.get_object('dialog')
+        # FIXME: temporary? See http://bugzilla.gnome.org/show_bug.cgi?id=587901
+        dialog.set_skip_taskbar_hint(False)
+        link = dialog_builder.get_object( 'album_link' )
+        link.set_uri( site.get_album_url( selected_id ) )
+        # After visiting the album, the window left would be mostly annoying:
+        link.connect( 'clicked', (lambda *args: dialog.destroy()) )
+        dialog.run()
+        dialog.destroy()
+
+def galleries_catalog(files):
+    dialog, tree, buttons = chooser(_('Gallery selection'), _('Select the gallery you want to upload pictures to:'))
+
+    model = gtk.ListStore(str)
+    for gallery in profiles.sections():
+        model.insert(10000, [gallery])
+    tree.set_model(model)
+
+    col = gtk.TreeViewColumn()
+    cell = gtk.CellRendererText()
+    col.pack_start(cell)
+    col.add_attribute(cell, 'text', 0)
+    tree.append_column(col)
+            
+    def delete(*args):
+        # Get selection
+        selection_iter = tree.get_selection().get_selected()[1]
+        site_name = model.get_value(selection_iter, 0)
+
+        dialog_surer = areyousurer(_("Are you sure you want to delete configuration for gallery installation \"%s\"?") % site_name, dialog)
+        he_s_sure = dialog_surer.run()
+        dialog_surer.destroy()
+
+        if he_s_sure == 0:
+            profiles.remove_section( site_name )
+            p_file = file( PROFILES_PATH , 'w' )
+            profiles.write( p_file )
+            p_file.close()
+            model.remove( selection_iter )
+
+    buttons['delete'].connect('clicked', delete)
+
+    for button in ['expand', 'collapse', 'accounts', 'new_album']:
+        buttons[button].hide()
+
+    response = dialog.run()
+    
+    if response == gtk.RESPONSE_DELETE_EVENT:
+        dialog.destroy()
+        sys.exit(0)
+    if response in [6, gtk.RESPONSE_OK]:
+        # Get selection
+        selection_iter = tree.get_selection().get_selected()[1]
+        site_name = model.get_value(selection_iter, 0)
+    else:
+        site_name = None
+        
+    dialog.destroy()
+
+    site = Site(site_name)
+    
+    if response in [5, 6]:
+        if not site.fill_from_form():
+            galleries_catalog(files)
+            return
+
+    upload_to_site(site, files)
+
+def main():
+
+    gtk.window_set_default_icon_from_file( os.path.join( STUFF_DIR, 'gallery.svg') )
+    
+    if not GALLERY_REMOTE:
+        error_dialog( _("galleryremote not found"),
+        _("Sorry, gallery-uploader won't work without the galleryremote library ( http://code.google.com/p/galleryremote ) installed."),
+        False )
+        sys.exit( 2 )
+
+
+    if options.files:
+        files = options.files
+    else:
+        if gtk.pygtk_version >= (2, 14, 0):
+            from galleryuploader_lib.browser import Browser
+        else:
+            error_dialog(_('Old pygtk version'), _('Impossible to start the pictures browser with the installed pygtk version (%s).\nTo use gallery-uploader on this version, you need to run it with the pictures you want to upload as arguments: for instance, by using it as a Nautilus script.' % ".".join([str(i) for i in gtk.pygtk_version])))
+            sys.exit(1)
+        browser = Browser()
+        files = browser.run()
+        browser.destroy()
+        if not files:
+            print "no files"
+            sys.exit(0)
+
+    for a_file in files:
+        if not os.path.exists(a_file):
+            print _("Error: file \"%s\" doesn't exist." %a_file)
+            parser.print_usage()
+            sys.exit(1)
+        if not os.path.isfile(a_file):
+            print _("Error: \"%s\" is not a regular file." %a_file)
+            parser.print_usage()
+            sys.exit(1)
+        if not os.access(a_file, os.R_OK):
+            print _("Error: can't read file \"%s\"." %a_file)
+            parser.print_usage()
+            sys.exit(1)
+        
+    sec_num = len(profiles.sections())
+    
+    if not sec_num:
+        site = Site()
+        if not site.fill_from_form():
+            sys.exit(0)
+        upload_to_site(site, files)
+    elif sec_num == 1:
+        site = Site(profiles.sections()[0])
+        upload_to_site(site, files)
+    else:
+        galleries_catalog(files)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception:
+        import traceback
+        err = traceback.format_exc()
+        fatal_error( [err] )

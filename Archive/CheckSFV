@@ -1,0 +1,5 @@
+#!/bin/bash
+IFS=$'\n'
+for file in $*; do
+/usr/bin/bsdsfv -T  $file |grep -e 'Testing\|tested' | perl -pi -e 's/ \.\.\. /\n/g'| zenity --list --title  "Test  Results"  --text "verifying CRC of Files in $file" --column "File" --column "CRC in File" --column "actual CRC" --column "Result"
+done

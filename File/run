@@ -1,0 +1,6 @@
+
+appname=`gdialog --title "Execute Command" --inputbox "Enter name of application to execute\n on selected file(s)" 200 100 "" 2>&1`
+for arg 
+do
+  exec "$appname" "$arg" &
+done 

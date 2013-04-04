@@ -1,0 +1,16 @@
+#!/bin/zsh
+IFS=$'\n'
+for f in $NAUTILUS_SCRIPT_SELECTED_URIS; do
+  name=$(echo -n ${f:t:r} | perl -n -e '$_=~s/(?<!%)%([0-9A-Fa-f]{2})(?{$subs=chr(hex($^N))})/$subs/g; print$_')
+  pdbpath="${f:r}.pdb"
+  fpdb=`mktemp`
+  fhtml=$(mktemp)
+  fpdb="/tmp/${name}.pdb"
+  gnomevfs-copy "$f" "$fhtml"
+  txt2pdbdoc "${name}" =(html2pdbtxt "${fhtml}") "${fpdb}"
+  obexftp -b 00:1F:5C:81:1A:0F -c "E:/eBooks/" -p  "${fpdb}" 
+  [[ $? -eq 255 ]] && notify-send "TXT-2-PDB -> E66" "${name} successfully sent to E66"
+  rm "${fhtml}" "${fpdb}"
+done
+
+

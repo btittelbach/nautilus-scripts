@@ -1,0 +1,4 @@
+#!/bin/bash
+IFS=$'\n'
+~/.gnome2/nautilus-scripts/.helpers/animerename.pl --ok $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS
+#| zenity --text-info

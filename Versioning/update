@@ -1,0 +1,43 @@
+#!/usr/bin/perl -w
+
+my @files;
+if (not defined $ENV{"NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"} or $ENV{"NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"} eq "")
+{
+  my $cwd = $ENV{"NAUTILUS_SCRIPT_CURRENT_URI"}."/";
+  $cwd =~ s/^file:\/+/\//;
+  $files[0]=$cwd;
+  #$log.=$cwd;
+}
+else
+{
+  @files = split("\n",$ENV{"NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"});
+}
+my $log="";
+
+foreach my $file (@files)
+{
+	my $filedir = $file;
+	my $filename = $file;
+	$filedir =~ s/\/[^\/]*$//;
+	$filename =~ s/^.*\///;
+	chdir($filedir);
+
+  #$log .= "file: $file\nfiledir: $filedir\nfilename: $filename\n";
+
+	if (-d "./.svn")
+	{
+		$log .= qx{svn update "$filename"};
+	}
+
+	if (-d "./cvs" || -d "./CVS")
+	{
+		$log .= qx{cvs update "$filename"};
+	}
+    
+	if (system("hg", "root") == 0)
+	{
+        	$log .= qx{hg update "$filename"};
+	}    
+}
+
+qx{echo "$log" | zenity --text-info}

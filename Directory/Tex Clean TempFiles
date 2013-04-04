@@ -1,0 +1,16 @@
+#!/bin/bash
+IFS=$'\n'
+if [ -n "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ] ; then
+	for dir in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS; do
+		if ! [ -d "$dir" ] ; then
+			BN=$(basename "$dir")
+			cd ${dir/%"$BN"/}
+		else
+			cd $dir
+		fi
+        ~/.gnome2/nautilus-scripts/.helpers/tex_temp_clean.sh &
+	done
+else
+	~/.gnome2/nautilus-scripts/.helpers/tex_temp_clean.sh &
+fi
+

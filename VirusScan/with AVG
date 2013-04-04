@@ -1,0 +1,14 @@
+#!/bin/bash
+IFS=$'\n'
+if [ -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ]; then
+	TOSCAN="./"
+else
+	TOSCAN="$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"
+fi
+
+if [ -z "$(ps --no-heading -p $(cat /opt/avg/avg8/var/run/avgd.pid))" ]; then
+  gnomesu -c "/etc/init.d/avgd start"
+fi
+xterm -hold -geometry 260x50 -e avgscan -a -H -p -m -b -w $TOSCAN
+#avgscan -a -H -p -m -b -w $TOSCAN 2>&1 |   zenity --text-info
+

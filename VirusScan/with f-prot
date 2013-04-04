@@ -1,0 +1,9 @@
+#!/bin/bash
+IFS=$'\n' 
+if [ -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ]; then
+	TOSCAN="./"
+else
+	TOSCAN="$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"
+fi
+xterm -hold  -e fpscan -f -s 4 $TOSCAN
+#fpscan -f -s 4 $TOSCAN 2>&1 |   zenity --text-info

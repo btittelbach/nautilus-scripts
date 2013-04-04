@@ -1,0 +1,49 @@
+#!/usr/bin/perl -w
+
+my @files;
+if (not defined $ENV{"NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"} or $ENV{"NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"} eq "")
+{
+  my $cwd = $ENV{"NAUTILUS_SCRIPT_CURRENT_URI"}."/";
+  $cwd =~ s/^file:\/+/\//;
+  $files[0]=$cwd;
+  #$log.=$cwd;
+}
+else
+{
+  @files = split("\n",$ENV{"NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"});
+}
+foreach my $file (@files)
+{
+	my $filedir = $file;
+	my $filename = $file;
+	$filedir =~ s/\/[^\/]*$//;
+	$filename =~ s/^.*\///;
+	#print STDOUT $filedir;
+	#print STDOUT $filename;
+	chdir($filedir);
+
+	if (-d "./.svn")
+	{
+		qx{Eterm -e svn -e "gvim -f" commit "$filename"};
+	}
+    
+	if (system("hg", "root") == 0)
+	{
+		print qx{EDITOR="gvim -f" Eterm -e hg commit "$filename"};
+	}    
+
+	if (-d "./.git")
+	{
+		print qx{EDITOR="gvim -f" Eterm -e git commit "$filename"};
+	}    
+
+	if (-d "./cvs" || -d "./CVS")
+	{
+		qx{Eterm -e cvs -e "gvim -f" commit "$filename"};
+	}
+    
+	if (system("git","status") != 128)
+	{
+        qx{GIT_EDITOR="gvim -f"  git commit -a 2>&1};
+	}     
+}

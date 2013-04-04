@@ -1,0 +1,6 @@
+
+a=$(lsof | grep "$@")
+if [ $a == ""] ; then
+    gdialog --backtitle "Process File Usage"  --msgbox "No Users" 25 20
+else    
+    gdialog --backtitle "Word Count Script"  --msgbox "$a" 25 20fi

@@ -1,0 +1,13 @@
+base=`echo $NAUTILUS_SCRIPT_CURRENT_URI | cut -d'/' -f3-`
+base_stripped=`echo $base | sed s/%20/' '/g -`
+selection="$1"
+selection_stripped=`echo $selection | sed s/%20/' '/g -`
+
+if [ -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ]; then
+     dir="$base_stripped"
+else 
+     while [ ! -z "$1" -a ! -d "$base/$selection_stripped" ]; do shift; done
+     dir="$base_stripped/$selection_stripped"
+fi
+
+filelight "$dir" &
