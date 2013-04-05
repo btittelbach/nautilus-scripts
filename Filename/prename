@@ -1,0 +1,4 @@
+#!/bin/zsh
+[[ -x =prename ]] || {zenity --error --text "prename is not installed"; exit 1}
+local PR_EXPR=$(zenity --title="prename arguments" --entry --entry-text='s///')
+prename "${PR_EXPR}" "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"
