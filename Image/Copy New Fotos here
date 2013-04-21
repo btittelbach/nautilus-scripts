@@ -1,0 +1,15 @@
+#!/bin/zsh
+setopt extendedglob braceccl globcomplete histsubstpattern
+local destdir="$PWD"
+local -a selected_paths
+local -a dcim_folders
+local last_x_days=$(zenity --title="Copy new photos here" --text="last x days of images" --entry --entry-text='1')
+last_x_days=$(($last_x_days))
+local -a new_images
+selected_paths=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
+[[ ${#selected_paths} -eq 1 && -d ${selected_paths[1]} ]] && destdir="${selected_paths[1]}"
+dcim_folders=( /media/**/DCIM(:h) )
+new_images=( ${^dcim_folders}/**/*.(#i)(jpg|tif|raw|mpo|thm|mp4|mkv|mts|mov|mpg)(.Ncd-$last_x_days) )
+cp -au "${new_images[@]}" "$destdir/"
+
+
