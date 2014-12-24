@@ -1,6 +1,6 @@
 #!/bin/zsh
 for dir in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
   if [[ -d $dir ]]; then
-    touch -r "$dir"/*(oc[1]) "$dir"
+    touch -r "$dir"/*(Oc[1]) "$dir"
   fi
 done

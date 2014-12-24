@@ -1,5 +1,2 @@
-#!/bin/sh
-#This script opens the selected file in ghex--a hex editor
-#It will only open a single file
-IFS=$'\n'
-ghex2 $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS &
+#!/bin/zsh
+ghex "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}" &

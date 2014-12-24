@@ -1,8 +1,7 @@
-#!/bin/bash
+#!/bin/zsh
 IFS=$'\n'
-test -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" && exit 1
-FILES=$(sort <<< "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS")
+[[ -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ]] && exit 1
+FILES=("${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}")
 DEST=$(common_substring.pl $FILES)
-test -z "$DEST" && exit 2
-test -e "$DEST" && exit 3
+[[ -z $DEST || -e $DEST ]] && exit 2
 cat $FILES > "$DEST"
