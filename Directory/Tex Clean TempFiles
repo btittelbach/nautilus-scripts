@@ -8,9 +8,9 @@ if [ -n "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ] ; then
 		else
 			cd $dir
 		fi
-        ~/.gnome2/nautilus-scripts/.helpers/tex_temp_clean.sh &
+        ~/.local/share/nautilus/scripts/.helpers/tex_temp_clean.sh &
 	done
 else
-	~/.gnome2/nautilus-scripts/.helpers/tex_temp_clean.sh &
+	~/.local/share/nautilus/scripts/.helpers/tex_temp_clean.sh &
 fi
 

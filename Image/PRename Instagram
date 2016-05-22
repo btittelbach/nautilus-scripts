@@ -7,4 +7,4 @@ local img_append="$(zenity --title="Append to Filename" --entry --entry-text="$d
 [[ $img_append == $default_append ]] && img_append=""
 [[ -n $img_prepend && $img_prepend[-1] != " " ]] && img_prepend="$img_prepend "
 [[ -n $img_append && $img_append[0] != " " ]] && img_append=" $img_append"
-prename "s/IMG_(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)/${img_prepend}\$1-\$2-\$3 \$4h\$5m\$6${img_append}/" "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"
+prename "s/(?:IMG_)?(\d\d\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)/${img_prepend}\$1-\$2-\$3 \$4h\$5m\$6${img_append}/" "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"

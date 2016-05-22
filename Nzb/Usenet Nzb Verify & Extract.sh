@@ -15,8 +15,8 @@ if [ -n "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ] ; then
 			export NZBP_DECODEDIR=$NEWSDIR${atmp/%.nzb/}
 			if [ -d "$NZBP_DECODEDIR" ] ; then
 				mkfifo /tmp/nzblog$$
-				cat /tmp/nzblog$$ >>~/.gnome2/nautilus-scripts/.helpers/post_nzb.log &
-				~/.gnome2/nautilus-scripts/.helpers/post_nzb_script.sh &>/tmp/nzblog$$ </dev/null
+				cat /tmp/nzblog$$ >>~/.local/share/nautilus/scripts/.helpers/post_nzb.log &
+				~/.local/share/nautilus/scripts/.helpers/post_nzb_script.sh &>/tmp/nzblog$$ </dev/null
 				rm /tmp/nzblog$$
 			fi
 		fi

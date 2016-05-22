@@ -11,9 +11,9 @@ if [ -n "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ] ; then
 		else
 			export NZBP_DECODEDIR=${dir}
 		fi
-		Eterm --pause -e ~/.gnome2/nautilus-scripts/.helpers/post_nzb_script.sh &
+		Eterm --pause -e ~/.local/share/nautilus/scripts/.helpers/post_nzb_script.sh &
 	done
 else
 	export NZBP_DECODEDIR="$PWD"
-	Eterm --pause -e ~/.gnome2/nautilus-scripts/.helpers/post_nzb_script.sh &
+	Eterm --pause -e ~/.local/share/nautilus/scripts/.helpers/post_nzb_script.sh &
 fi

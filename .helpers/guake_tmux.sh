@@ -1,3 +1,4 @@
 #!/bin/zsh
-#[[ $(screen -ls) == *.tilda[[:space:]]* ]] && {exec screen -RdS tilda || exec zsh} || exec screen -S tilda
-tmux has-session -t tilda && {exec tmux attach-session -t tilda || exec zsh} || exec tmux new-session -s tilda
+local mainsession=guake
+[[ $TERM == dumb || -z $TERM ]] && export TERM=xterm
+tmux has-session -t $mainsession && {{tmux list-session | egrep -q "^$mainsession:.*attached" && exec tmux new-session || exec tmux attach-session -t $mainsession } || exec zsh} || exec tmux new-session -s $mainsession

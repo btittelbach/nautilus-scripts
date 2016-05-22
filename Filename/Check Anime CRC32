@@ -3,4 +3,4 @@
 #echo $NAUTILUS_SCRIPT_SELECTED_URIS | zenity --text-info 
 #FILE=`echo $NAUTILUS_SCRIPT_SELECTED_URIS | cut -d $'\n' -f 1`
 IFS=$'\n'
-~/.gnome2/nautilus-scripts/.helpers/chk_anime_crc32.pl $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS | zenity --text-info --width=1100 --height=500 --name "Check Anime CRC32"
+~/.local/share/nautilus/scripts/.helpers/chk_anime_crc32.pl $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS | zenity --text-info --width=1100 --height=500 --name "Check Anime CRC32"

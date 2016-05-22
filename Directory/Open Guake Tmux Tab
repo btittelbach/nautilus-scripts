@@ -10,4 +10,4 @@ else
      dir="$base_stripped/$selection_stripped"
 fi
 
-~/.gnome2/nautilus-scripts/.helpers/guake_cd_to.sh "$dir"
+~/.local/share/nautilus/scripts/.helpers/guake_cd_to.sh "$dir"
