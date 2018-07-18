@@ -1,0 +1,6 @@
+#!/bin/zsh
+[[ -n ${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS} ]] && FILES=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
+[[ ${#FILES} -eq 0 ]] && FILES=("$@")
+dpath="${FILES[1]:h}"
+common_files_prefix="$(print -l "${FILES[@]:t}" |sed -e '$!{N;s/^\(.*\).*\n\1.*$/\1\n\1/;D;}' | sed 's/\s\+$//')"
+convert "${FILES[@]}" -page A4 "${dpath}/${common_files_prefix}".pdf

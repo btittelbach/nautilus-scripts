@@ -1,0 +1,5 @@
+#!/bin/zsh
+[[ -n ${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS} ]] && FILES=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
+[[ ${#FILES} -eq 0 ]] && FILES=("$@")
+
+pdf180 --suffix 'upturned' --batch "${FILES[@]}"

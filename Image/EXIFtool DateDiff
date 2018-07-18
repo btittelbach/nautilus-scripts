@@ -1,0 +1,9 @@
+#!/bin/zsh
+[[ -x =exiftool ]] || {zenity --error --text "exiftool is not installed"; exit 1}
+local imgts
+local realts
+local tsdiff
+imgts=$(exiftool -p '$CreateDate' -d "%s" "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS[1]}")
+realts=$(($(zenity --title="Time in picture (epoch seconds)" --entry --entry-text='epoch seconds')))
+tsdiff=$((realts-imgts))
+zenity --text-info --filename=/dev/stdin <<< "$tsdiff"

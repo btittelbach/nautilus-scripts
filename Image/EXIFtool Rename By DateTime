@@ -17,4 +17,5 @@ img_append2="$(zenity --title="Append fotographer to filename" --entry --entry-t
 [[ -n $img_append2 && $img_append2[0] != " " ]] && img_append="$img_append by $img_append2"
 
 ## last -FileName assignment superseedes the earlier one if all variables are defined
-exiftool -m '-DateTimeOriginal>FileModifyDate' -if '$CreateDate' '-FileName<${CreateDate}${model;s/^/ /}.%e' -d "${img_prepend}%Y-%m-%d %Hh%Mm%S%%-c${img_append}" "${FILES[@]}"
+## -api QuickTimeUTC tells exiftool that MovieDates are corretly (as standard says) saved in UTC as opposed to LocalTime (like in jpgs)
+exiftool -m -api QuickTimeUTC '-DateTimeOriginal>FileModifyDate' -if '$CreateDate' '-FileName<${CreateDate}${model;s/^/ /}.%e' -d "${img_prepend}%Y-%m-%d %Hh%Mm%S%%-c${img_append}" "${FILES[@]}"
