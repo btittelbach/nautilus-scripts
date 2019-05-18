@@ -1,13 +1,20 @@
-base=`echo $NAUTILUS_SCRIPT_CURRENT_URI | cut -d'/' -f3-`
-base_stripped=`echo $base | sed s/%20/' '/g -`
-selection="$1"
-selection_stripped=`echo $selection | sed s/%20/' '/g -`
+#!/bin/zsh
 
-if [ -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ]; then
-     dir="$base_stripped"
-else 
-     while [ ! -z "$1" -a ! -d "$base/$selection_stripped" ]; do shift; done
-     dir="$base_stripped/$selection_stripped"
+local dir
+if [[ -z $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS ]]; then
+  base=$(echo "$NAUTILUS_SCRIPT_CURRENT_URI" | cut -d'/' -f3-)  #remove file://
+  base_stripped="$(printf -v base "%b" "${base/\%/\x}")"
+  dir="$base_stripped"
+else
+  for fp in ${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}; do
+    if [[ -d $fp ]]; then
+      dir=${fp}
+      break
+    elif [[ -f $fp ]]; then
+      dir=${fp:h}
+      break        
+    fi
+  done
 fi
 
-~/.local/share/nautilus/scripts/.helpers/guake_cd_to.sh "$dir"
+[[ -n $dir ]] && ~/.local/share/nautilus/scripts/.helpers/guake_cd_to.sh "$dir"

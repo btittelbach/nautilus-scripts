@@ -1,44 +1,6 @@
-#!/usr/bin/perl -w
+#!/bin/zsh
 
-@files = split("\n",$ENV{"NAUTILUS_SCRIPT_SELECTED_FILE_PATHS"});
-my $resstr="";
-my $curdir = qx{pwd};
-foreach my $file (@files)
-{
-	my $filedir = $file;
-	my $filename = $file;
-	$filedir =~ s/\/[^\/]*$//;
-	$filename =~ s/^.*\///;
-	if ($filedir ne "")
-	{
-		chdir($filedir);
-	}
-	else
-	{
-		chdir($curdir);
-	}
+## git add all except the last empty string
+git add "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS[1,-2]}"
 
-	if (-d "./.svn")
-	{
-		$resstr .= qx{svn add "$filename" 2>&1};
-	}
 
-	if (system("hg","root") == 0)
-	{
-		$resstr .= qx{hg add "$filename" 2>&1};
-	}
-    
-	if (-d "./cvs" || -d "./CVS")
-	{
-		$resstr .= qx{cvs add "$filename" 2>&1};
-	}
-    
-	if (system("git","status") != 128)
-	{
-		$resstr .= qx{git add "$filename" 2>&1};
-	}
-}
-if ($resstr ne "")
-{
-	qx{echo "$resstr" | zenity --text-info}
-}

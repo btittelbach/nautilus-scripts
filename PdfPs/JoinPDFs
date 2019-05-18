@@ -3,4 +3,5 @@
 [[ ${#FILES} -eq 0 ]] && FILES=("$@")
 dpath="${FILES[1]:h}"
 common_files_prefix="$(print -l "${FILES[@]:t}" |sed -e '$!{N;s/^\(.*\).*\n\1.*$/\1\n\1/;D;}' | sed 's/\s\+$//')"
+[[ -z ${common_files_prefix} ]] && common_files_prefix="joined"
 pdfjoin "${FILES[@]}" --no-landscape --paper A4 --rotateoversize false --outfile "${dpath}/${common_files_prefix}".pdf

@@ -4,7 +4,7 @@
 #FILE=`echo $NAUTILUS_SCRIPT_SELECTED_URIS | cut -d $'\n' -f 1`
 IFS=$'\n'
 for FILE in $NAUTILUS_SCRIPT_SELECTED_URIS; do
-  gnomevfs-info "${FILE}" | egrep -q "^Error:" && continue
+  gio info "${FILE}" | egrep -q "^Error:" && continue
   FPATH=`dirname "${FILE}"`
   DIRNAME=`basename "${FPATH}"`
   EXT=${FILE/*./}
@@ -13,6 +13,6 @@ for FILE in $NAUTILUS_SCRIPT_SELECTED_URIS; do
   test ${#EXT} -gt 4 && exit 3
   DEST="${FPATH}/${DIRNAME}.${EXT}"
   #test -e "${DEST}" && continue
-  gnomevfs-info "${DEST}" | egrep -q "^Error:" || continue
-  gnomevfs-mv "${FILE}" "${DEST}"
+  gio info "${DEST}" | egrep -q "^Error:" || continue
+  gio mv "${FILE}" "${DEST}"
 done

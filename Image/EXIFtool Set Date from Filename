@@ -4,14 +4,17 @@ local -a match mbegin mend
 [[ -x =exiftool ]] || {zenity --error --text "exiftool is not installed"; exit 1}
 for f in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS[@]}"; do
   [[ -z $f ]] && continue
+  unset DATE
   local DATE
   [[ ${f:t} = (*[^0-9]|(#s))(#b)([0-9-](#c8,10))\ ([0-2][0-9])h([0-6][0-9])m([0-6][0-9])* ]] && DATE="${match[1]} ${match[2]}:${match[3]}:${match[4]}"
-  [[ ${f:t} = (*[^0-9]|(#s))(#b)([0-9-](#c8,10) [0-2][0-9]:[0-6][0-9]:[0-6][0-9])* ]] && DATE=${match}
-  [[ ${f:t} = (*[^0-9]|(#s))(#b)(2[0-9][0-9][0-9])([0-9][0-9])([0-9][0-9])_([0-2][0-9])([0-6][0-9])([0-6][0-9])* ]] && DATE="${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:${match[6]}"
+  [[ ${f:t} = (#s)(#b)(2[0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])\ ([0-2][0-9]).([0-6][0-9]).([0-6][0-9])* ]] && DATE="${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:${match[6]}"
+  [[ ${f:t} = (#s)signal-attachment-(#b)([-0-9](#c10))-([0-2][0-9][0-6][0-9][0-6][0-9])* ]] && DATE="${match[1]} ${match[2]}"
+  [[ ${f:t} = (*[^0-9]|(#s))(#b)([-0-9](#c8,10) [0-2][0-9]:[0-6][0-9]:[0-6][0-9])* ]] && DATE=${match}
+  [[ ${f:t} = (*[^0-9]|(#s)Madv360_IMG_|(#s)Madv360_VID_|(#s))(#b)(2[0-9][0-9][0-9])([0-9][0-9])([0-9][0-9])_([0-2][0-9])([0-6][0-9])([0-6][0-9])[^0-9]* ]] && DATE="${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:${match[6]}"
   print $DATE >> /tmp/exif_date_from_filename.log
   if [[ -n $DATE ]]; then
     ## -api QuickTimeUTC tells exiftool that MovieDates are corretly (as standard says) saved in UTC as opposed to LocalTime (like in jpgs)
-    exiftool -overwrite_original -api QuickTimeUTC -AllDates="${DATE}" -m "$f"
+    exiftool -overwrite_original -api QuickTimeUTC -DateTime="${DATE}" -AllDates="${DATE}" -m "$f"
   fi
 done
 
