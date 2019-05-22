@@ -1,0 +1,8 @@
+#!/bin/zsh
+[[ -n ${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS} ]] && FILES=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
+[[ ${#FILES} -eq 0 ]] && FILES=("$@")
+for pdffile in "${FILES[@]}"; do
+  dpath="${pdffile:h}"
+  [[ -z $dpath ]] && dpath="."
+  pdfseparate "${pdffile}" "${dpath}/${pdffile:t:r}-%03d".pdf
+done
