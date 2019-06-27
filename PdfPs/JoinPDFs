@@ -1,4 +1,5 @@
 #!/bin/zsh
+[[ -x =pdfjoin ]] || { MSG="Please install pdfjoin which comes with texlive-extra-utils to join PDFs"; echo $MSG; zenity --info --text="$MSG" --icon-name=error  ;exit 1}
 [[ -n ${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS} ]] && FILES=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
 [[ ${#FILES} -eq 0 ]] && FILES=("$@")
 dpath="${FILES[1]:h}"

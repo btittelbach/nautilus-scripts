@@ -1,4 +1,5 @@
 #!/bin/zsh
+[[ -x =pdfseparate ]] || { MSG="Please install poppler-utils to modify PDFs"; echo $MSG; zenity --info --text="$MSG" --icon-name=error  ;exit 1}
 [[ -n ${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS} ]] && FILES=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
 [[ ${#FILES} -eq 0 ]] && FILES=("$@")
 for pdffile in "${FILES[@]}"; do

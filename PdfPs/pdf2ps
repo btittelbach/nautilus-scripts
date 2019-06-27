@@ -8,4 +8,4 @@ from sys import argv
 
 pdf_file = []
 pdf_file.append(argv[1])
-execvp('pdf2ps', ['pdf2ps']+pdf_file)
+execvp('pdftops', ['pdftops']+pdf_file)
