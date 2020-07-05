@@ -1,0 +1,15 @@
+#!/bin/zsh
+type ffmpeg || exit 1
+(
+for mp4 in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
+  [[ ${mp4:e:l} != mp4 && ${mp4:e:l} != mts ]] && continue
+  local dst="${mp4:r}".x265.mp4
+  [[ -e $dst ]] && continue
+  ffmpeg -i "$mp4" -c:a copy -movflags use_metadata_tags -map_metadata 0 -vcodec libx265 -crf 25 "$dst" \
+    && exiftool -overwrite_original -TagsFromFile "$mp4" "$dst" && touch -r "$mp4" "$dst"
+done
+) |& zenity --text-info --no-interaction --text "${mp4:t} -> ${dst:t}" --title "ffmpeg transcoding" --auto-scroll --width 1024 --height 640
+## if file hast 0 bytes, remove it
+[[ -f "$dst" && ! -s "$dst" ]] && rm "$dst"
+exit 0
+
