@@ -14,7 +14,7 @@ for f in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS[@]}"; do
   print $DATE >> /tmp/exif_date_from_filename.log
   if [[ -n $DATE ]]; then
     ## -api QuickTimeUTC tells exiftool that MovieDates are corretly (as standard says) saved in UTC as opposed to LocalTime (like in jpgs)
-    exiftool -overwrite_original -api QuickTimeUTC -DateTime="${DATE}" -AllDates="${DATE}" -m "$f"
+    exiftool -overwrite_original -api QuickTimeUTC -DateTime="${DATE}" -AllDates="${DATE}" -FileModifyDate="${DATE}" -m "$f"
   fi
 done
 
