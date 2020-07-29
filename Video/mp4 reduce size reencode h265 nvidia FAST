@@ -7,7 +7,7 @@ for mp4 in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
   [[ -e $dst ]] && continue
   #ffmpeg -strict 2 -hwaccel auto -i "$mp4" -c:v hevc_nvenc -rc vbr -cq 28 -profile:v main10 -pix_fmt p010le -b:v 0K -c:a copy -map 0 "$dst" \
   ffmpeg -strict 2 -hwaccel auto -i "$mp4" -c:v hevc_nvenc -rc vbr_hq -cq 25 -profile:v main10 -pix_fmt p010le -b:v 0K -c:a copy -map 0 "$dst" \
-    && exiftool -overwrite_original -TagsFromFile "$mp4" "$dst" && touch -r "$mp4" "$dst" || rm "$dst"
+    && exiftool -overwrite_original -extractEmbedded -TagsFromFile "$mp4" "$dst" && touch -r "$mp4" "$dst" || rm "$dst"
   ## if file hast 0 bytes, remove it
   [[ -f "$dst" && ! -s "$dst" ]] && rm "$dst"
 done
