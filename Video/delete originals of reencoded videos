@@ -1,6 +1,19 @@
 #!/bin/zsh
 setopt extendedglob cshnullglob braceccl histsubstpattern
-for x in *.(x265|vp9|av1|x265opus).(mp4|webv|mkv); do
-  y=( "${x:r:r}".(mov|MP4|mp4|MTS|MOV)([1]N));
-  [[ -n $y && -s $x && -f $y ]] && rm "$y"
+(
+for x in *.(x265|vp9|av1|x265opus|hevc_nvenc).(mp4|webv|mkv); do
+  y=( "${x:r:r}".(MOV|mov|MP4|mp4|MTS|mts)([1]N));
+  if [[ -n $y && -s $x && -f $y ]]; then
+    if fuser -s "$y"; then
+        echo "Newly transcoded video is in use and may still be transcoding. Skipping $x"
+        continue
+    fi
+    if fuser -s "$x"; then
+        echo "Original is in use and may still be transcoding. Skipping $x"
+        continue
+    fi
+    rm -v "$y"
+  fi
 done
+echo "=== Done ==="
+) | zenity --text-info --no-interaction --text "Deleting Originals of transcoded videos" --title "Deleting Originals of transcoded videos" --auto-scroll --width 1024 --height 640 
