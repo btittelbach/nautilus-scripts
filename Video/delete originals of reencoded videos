@@ -1,0 +1,6 @@
+#!/bin/zsh
+setopt extendedglob cshnullglob braceccl histsubstpattern
+for x in *.(x265|vp9|av1|x265opus).(mp4|webv|mkv); do
+  y=( "${x:r:r}".(mov|MP4|mp4|MTS|MOV)([1]N));
+  [[ -n $y && -s $x && -f $y ]] && rm "$y"
+done

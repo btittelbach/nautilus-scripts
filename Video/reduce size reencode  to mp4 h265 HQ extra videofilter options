@@ -1,0 +1,45 @@
+#!/bin/zsh
+type ffmpeg || exit 1
+local ffmpeg_global_options=()
+local ffmpeg_video_codec=libx265
+local ffmpeg_video_codec_options=(-crf 25)
+local ffmpeg_audio_codec=copy
+local ffmpeg_audio_codec_options=()
+local ffmpeg_filters=($(echo -e '-vf transpose=0\nRotate 90°CCW and flip vertically\n-vf transpose=3\nRotate 90°CW and flip vertically\n-vf transpose=1\nRotate 90° CW\n-vf transpose=2\nRotate 90° CCW\n-vf transpose=2,transpose=2\nRotate 180°\n-vf lutyuv=y=val*4\nBrighten by factor 4\n-vf lutyuv=y=gammaval(0.7)\nincrease gamma by 30%?\n-vf lutyuv=y=gammaval(0.2)\nincrease gamma by 5\n-vf scale=1920:-1\nScale to 1920 and keep aspect ratio\n-vf unsharp=9:9:1.5:9:9:1.5\nSharpen Video\n-filter_complex [0:v]trim=start=0:duration=25[adark];[0:v]trim=start=25:duration=385,setpts=PTS-STARTPTS[bok];[adark]lutyuv=y=gammaval(0.7)[abrighter];[abrighter][bok]concat[out1] -map [out1]:v:0 -map 0:a:0 -map\nGamma increase first 25s of video' | zenity --width=1400 --height=600 --list --title "Choose ffmpeg filter" --multiple --column "args to add" --column "description" --print-column=1 --separator=' ' --editable))
+local output_extension=.x265_filter_applied.mp4
+local ffmpegprocesspidstore=$(mktemp)
+local ffmpegprocesslog=$(mktemp)
+local keeprunning=$(mktemp)
+trap "rm -f $ffmpegprocesspidstore $ffmpegprocesslog $keeprunning" EXIT
+(
+  tail -f $ffmpegprocesslog | zenity --text-info --no-interaction --text "${mp4:t} -> ${dst:t}" --title "ffmpeg transcoding" --auto-scroll --width 1024 --height 640 \
+  || {
+    ## on zenity cancel kill ffmpeg and rm pidfile
+    local ffmpegpid=$(<$ffmpegprocesspidstore)
+    rm -f "$keeprunning"
+    [[ -n $ffmpegpid ]] && kill "$ffmpegpid"
+    return 0
+  }
+)&
+(
+for mp4 in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
+  [[ ${mp4:e:l} != mp4 && ${mp4:e:l} != mts && ${mp4:e:l} != mov ]] && continue
+  local dst="${mp4:r}${output_extension}"
+  [[ -e $dst ]] && continue
+  ## if keeprunning was deleted: stop
+  [[ -f $keeprunning ]] || exit 0
+  ffmpeg $ffmpeg_global_options -i "$mp4" -c:a $ffmpeg_audio_codec $ffmpeg_audio_codec_options -movflags use_metadata_tags -map_metadata 0 $ffmpeg_filters -vcodec $ffmpeg_video_codec $ffmpeg_video_codec_options "$dst" &
+  local ffmpegpid=$!
+  ## store pid in pidfile so ffmpeg can be killed on cancel
+  echo $ffmpegpid >| "$ffmpegprocesspidstore"
+  wait $ffmpegpid ; local ec=$?
+  echo -n "" >| "$ffmpegprocesspidstore"
+  ## if ffmpeg was not killed and had no error, transfer exif tags and time, otherwise rm dst
+  [[ $ec -eq 0 ]] && exiftool -overwrite_original -extractEmbedded -TagsFromFile "$mp4" "$dst" && touch -r "$mp4" "$dst" || rm -f "$dst"
+  ## if file hast 0 bytes, remove it
+  [[ -f "$dst" && ! -s "$dst" ]] && rm -f "$dst"
+done
+) >& $ffmpegprocesslog
+
+exit 0
+

@@ -1,0 +1,45 @@
+#!/bin/zsh
+type ffmpeg || exit 1
+local ffmpeg_global_options=()
+local ffmpeg_video_codec=libaom-av1
+local ffmpeg_video_codec_options=(-crf 30 -b:v 0 -strict experimental)
+local ffmpeg_audio_codec=copy
+local ffmpeg_audio_codec_options=()
+local ffmpeg_filters=()
+local output_extension=.av1.webm
+local ffmpegprocesspidstore=$(mktemp)
+local ffmpegprocesslog=$(mktemp)
+local keeprunning=$(mktemp)
+trap "rm -f $ffmpegprocesspidstore $ffmpegprocesslog $keeprunning" EXIT
+(
+  tail -f $ffmpegprocesslog | zenity --text-info --no-interaction --text "${mp4:t} -> ${dst:t}" --title "ffmpeg transcoding" --auto-scroll --width 1024 --height 640 \
+  || {
+    ## on zenity cancel kill ffmpeg and rm pidfile
+    local ffmpegpid=$(<$ffmpegprocesspidstore)
+    rm -f "$keeprunning"
+    [[ -n $ffmpegpid ]] && kill "$ffmpegpid"
+    return 0
+  }
+)&
+(
+for mp4 in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
+  [[ ${mp4:e:l} != mp4 && ${mp4:e:l} != mts && ${mp4:e:l} != mov ]] && continue
+  local dst="${mp4:r}${output_extension}"
+  [[ -e $dst ]] && continue
+  ## if keeprunning was deleted: stop
+  [[ -f $keeprunning ]] || exit 0
+  ffmpeg $ffmpeg_global_options -i "$mp4" -c:a $ffmpeg_audio_codec $ffmpeg_audio_codec_options -movflags use_metadata_tags -map_metadata 0 $ffmpeg_filters -vcodec $ffmpeg_video_codec $ffmpeg_video_codec_options "$dst" &
+  local ffmpegpid=$!
+  ## store pid in pidfile so ffmpeg can be killed on cancel
+  echo $ffmpegpid >| "$ffmpegprocesspidstore"
+  wait $ffmpegpid ; local ec=$?
+  echo -n "" >| "$ffmpegprocesspidstore"
+  ## if ffmpeg was not killed and had no error, transfer exif tags and time, otherwise rm dst
+  [[ $ec -eq 0 ]] && exiftool -overwrite_original -extractEmbedded -TagsFromFile "$mp4" "$dst" && touch -r "$mp4" "$dst" || rm -f "$dst"
+  ## if file hast 0 bytes, remove it
+  [[ -f "$dst" && ! -s "$dst" ]] && rm -f "$dst"
+done
+) >& $ffmpegprocesslog
+
+exit 0
+
