@@ -1,5 +1,7 @@
 #!/bin/zsh
 type ffmpeg || exit 1
+type exiftool || exit 1
+type zenity || exit 1
 local extra_options=($(echo -e '-c:v h264_cuvid -resize 2880x1600\nresize to 2880x1600' | zenity --width=1400 --height=600 --list --title "Choose ffmpeg filter" --multiple --column "args to add" --column "description" --print-column=1 --separator=' ' --editable))
 local ffmpeg_global_options=(-vsync 0 -strict 2 -hwaccel auto $extra_options)
 local ffmpeg_video_codec=hevc_nvenc

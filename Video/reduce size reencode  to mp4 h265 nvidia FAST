@@ -1,5 +1,7 @@
 #!/bin/zsh
 type ffmpeg || exit 1
+type exiftool || exit 1
+type zenity || exit 1
 local ffmpeg_global_options=(-strict 2 -hwaccel auto )
 local ffmpeg_video_codec=hevc_nvenc
 local ffmpeg_video_codec_options=(-rc vbr_hq -cq 25 -profile:v main10 -pix_fmt p010le -b:v 0K)

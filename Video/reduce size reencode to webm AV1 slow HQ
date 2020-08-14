@@ -1,5 +1,7 @@
 #!/bin/zsh
 type ffmpeg || exit 1
+type exiftool || exit 1
+type zenity || exit 1
 local ffmpeg_global_options=()
 local ffmpeg_video_codec=libaom-av1
 local ffmpeg_video_codec_options=(-crf 30 -b:v 0 -strict experimental)
