@@ -1,0 +1,59 @@
+#!/bin/zsh
+type ffmpeg || exit 1
+type exiftool || exit 1
+type zenity || exit 1
+local ffmpeg_global_options=()
+local ffmpeg_video_codec=libx265
+local ffmpeg_video_codec_options=( -crf 21 )
+local ffmpeg_audio_codec=copy
+local ffmpeg_audio_codec_options=()
+local ffmpeg_imageinputframerate=( -r $(zenity --entry --entry-text "8/1" --text "Set Framerate of Images") )
+local ffmpeg_outputfilename=$(zenity --entry --entry-text "VideoOfImages.mp4" --text "Output Filename")
+local ffmpegprocesspidstore=$(mktemp)
+local ffmpegprocesslog=$(mktemp)
+local keeprunning=$(mktemp)
+local ffmpegfilelist=$(mktemp)
+trap "rm -f $ffmpegprocesspidstore $ffmpegprocesslog $keeprunning $ffmpegfilelist" EXIT
+(
+  tail -f $ffmpegprocesslog | zenity --text-info --no-interaction --text "${mp4:t} -> ${dst:t}" --title "ffmpeg transcoding" --auto-scroll --width 1024 --height 640 \
+  || {
+    ## on zenity cancel kill ffmpeg and rm pidfile
+    local ffmpegpid=$(<$ffmpegprocesspidstore)
+    rm -f "$keeprunning"
+    [[ -n $ffmpegpid ]] && kill "$ffmpegpid"
+    return 0
+  }
+)&
+(
+local firstimage
+for img in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
+  if [[ -f "$img" ]]; then
+    [[ -z $firstimage ]] && firstimage="$img"
+    echo file \'$img\' >> "$ffmpegfilelist"
+  fi
+done
+cat $ffmpegfilelist
+local dst="${ffmpeg_outputfilename}"
+[[ -e $dst ]] && exit 1
+## if keeprunning was deleted: stop
+[[ -f $keeprunning ]] || exit 0
+ffmpeg $ffmpeg_global_options -f concat -safe 0 $ffmpeg_imageinputframerate -i "$ffmpegfilelist" -vcodec $ffmpeg_video_codec $ffmpeg_video_codec_options "$dst" &
+local ffmpegpid=$!
+## store pid in pidfile so ffmpeg can be killed on cancel
+echo $ffmpegpid >| "$ffmpegprocesspidstore"
+wait $ffmpegpid ; local ec=$?
+echo -n "" >| "$ffmpegprocesspidstore"
+echo "===== DONE ====="
+## if ffmpeg was not killed and had no error, transfer exif tags and time, otherwise rm dst
+if [[ $ec -eq 0 ]]; then
+  exiftool -overwrite_original -TagsFromFile "$firstimage" "$dst"
+  touch -r "$firstimage" "$dst"
+else
+  rm -f -v "$dst"
+fi
+## if file hast 0 bytes, remove it
+[[ -f "$dst" && ! -s "$dst" ]] && rm -v -f "$dst"
+) >& $ffmpegprocesslog
+
+exit 0
+
