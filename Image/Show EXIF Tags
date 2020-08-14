@@ -1,0 +1,14 @@
+#!/bin/zsh
+type exiftool || exit 1
+type zenity || exit 1
+(
+for img in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
+  echo "======================================================"
+  echo "$img"
+  echo "------------------------------------------------------"
+  exiftool "$img"
+done
+) | zenity --text-info --no-interaction  --title "EXIF Tags" --width 1024 --height 640
+
+exit 0
+
