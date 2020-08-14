@@ -27,7 +27,8 @@ trap "rm -f $ffmpegprocesspidstore $ffmpegprocesslog $keeprunning" EXIT
 (
 for mp4 in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
   [[ ${mp4:e:l} != mp4 && ${mp4:e:l} != mts && ${mp4:e:l} != mov ]] && continue
-  local dst="${mp4:r}${output_extension}"
+  local dst="${mp4:h}/.${mp4:t:r}${output_extension}"
+  local finaldst="${mp4:r}${output_extension}"
   [[ -e $dst ]] && continue
   ## if keeprunning was deleted: stop
   [[ -f $keeprunning ]] || exit 0
@@ -41,6 +42,7 @@ for mp4 in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
   [[ $ec -eq 0 ]] && exiftool -overwrite_original -extractEmbedded -TagsFromFile "$mp4" "$dst" && touch -r "$mp4" "$dst" || rm -f "$dst"
   ## if file hast 0 bytes, remove it
   [[ -f "$dst" && ! -s "$dst" ]] && rm -f "$dst"
+  [[ -f "$dst" ]] && mv "$dst" "$finaldst"
 done
 ) >& $ffmpegprocesslog
 
