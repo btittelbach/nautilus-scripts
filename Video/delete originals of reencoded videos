@@ -1,5 +1,7 @@
 #!/bin/zsh
 setopt extendedglob cshnullglob braceccl histsubstpattern
+type fuser || exit 1
+type zenity || exit 1
 (
 for x in *.(x265|vp9|av1|x265opus|x265aac|hevc_nvenc).(mp4|webv|mkv); do
   y=( "${x:r:r}".(MOV|mov|MP4|mp4|MTS|mts)([1]N));
