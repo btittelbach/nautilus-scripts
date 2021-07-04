@@ -1,0 +1,18 @@
+#!/bin/zsh
+[[ -n ${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS} ]] && FILES=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
+[[ ${#FILES} -eq 0 ]] && FILES=("$@")
+[[ 0 -eq ${#FILES} ]] && exit 1
+dpath="${FILES[1]:h}"
+common_files_prefix="$(print -l "${FILES[@]:t:r}" |sed -e '$!{N;s/^\(.*\).*\n\1.*$/\1\n\1/;D;}' | sed 's/\s\+$//')"
+[[ -z ${common_files_prefix} ]] && common_files_prefix="${FILES[1]:t:r}"
+while true; do
+	new_common_files_prefix="$(echo "$common_files_prefix" | sed -e 's/\s*\[[^]]\+\]$//;')"
+	[[ $new_common_files_prefix == $common_files_prefix ]] && break
+	common_files_prefix="$new_common_files_prefix"
+done
+common_files_prefix="$(echo "$common_files_prefix" | sed -e 's/ -\( \d\+\)\?$//;')"
+[[ -z ${common_files_prefix} ]] && exit 2
+
+ddir="${dpath}/${common_files_prefix}"
+mkdir -p "$ddir" || exit 3
+mv "${FILES[@]}" "${ddir}"
