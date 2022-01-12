@@ -1,0 +1,18 @@
+#!/bin/zsh
+setopt extendedglob
+[[ -x =exiftool ]] || {zenity --error --text "exiftool is not installed"; exit 1}
+[[ -n ${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS} ]] && FILES=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
+[[ ${#FILES} -eq 0 ]] && FILES=("$@")
+
+GPXFILES=(${(M)FILES:#*(#i)gpx})
+IMGFILES=(${(M)FILES:#*(#i)(jpg|mp4|jpeg|mkv)})
+
+print "gpx:"
+print -l $GPXFILES
+print "img:"
+print -l $IMGFILES
+
+exiftool -P -m -if 'not $gpslatitude' -geotag=${^GPXFILES} -geosync=1:0:0 "${IMGFILES[@]}"
+gvfs-trash "${^IMGFILES[@]}_original"
+
+
