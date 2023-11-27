@@ -1,0 +1,2 @@
+#!/bin/bash
+~/.local/bin/appendfilename --text "$(zenity --title="Append to filename" --entry --entry-text='')" "${@}"

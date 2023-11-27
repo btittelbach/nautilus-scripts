@@ -1,0 +1,2 @@
+#!/bin/bash
+~/.local/bin/appendfilename --smart-prepend --text "$(zenity --title="Prepend to filename" --entry --entry-text='')" "${@}"

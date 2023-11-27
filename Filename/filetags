@@ -1,0 +1,5 @@
+#!/bin/bash
+/usr/bin/gnome-terminal  \
+  --geometry=85x15+330+5  \
+  --hide-menubar  \
+  -x ~/.local/bin/filetags --interactive "${@}"
