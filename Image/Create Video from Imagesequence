@@ -15,7 +15,7 @@ local keeprunning=$(mktemp)
 local ffmpegfilelist=$(mktemp)
 trap "rm -f $ffmpegprocesspidstore $ffmpegprocesslog $keeprunning $ffmpegfilelist" EXIT
 (
-  tail -f $ffmpegprocesslog | zenity --text-info --no-interaction --text "${mp4:t} -> ${dst:t}" --title "ffmpeg transcoding" --auto-scroll --width 1024 --height 640 \
+  tail -f $ffmpegprocesslog | zenity --text-info --text "${mp4:t} -> ${dst:t}" --title "ffmpeg transcoding" --auto-scroll --width 1024 --height 640 \
   || {
     ## on zenity cancel kill ffmpeg and rm pidfile
     local ffmpegpid=$(<$ffmpegprocesspidstore)

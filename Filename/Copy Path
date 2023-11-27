@@ -1,4 +1,4 @@
 #!/bin/zsh
 local -a FILES
 FILES=(${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS})
-echo -n "$FILES[@]" | xclip
+echo -n "${FILES[@]:q}" | xclip

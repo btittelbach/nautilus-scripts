@@ -8,7 +8,7 @@ for img in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
   echo "------------------------------------------------------"
   exiftool "$img"
 done
-) | zenity --text-info --no-interaction  --title "EXIF Tags" --width 1024 --height 640
+) | zenity --text-info  --title "EXIF Tags" --width 1024 --height 640
 
 exit 0
 

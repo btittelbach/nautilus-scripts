@@ -23,4 +23,4 @@ for x in *.(x265|vp9|av1|x265opus|x265aac|hevc_nvenc).(mp4|webv|mkv); do
   fi
 done
 echo "=== Done ==="
-) | zenity --text-info --no-interaction --text "Deleting Originals of transcoded videos" --title "Deleting Originals of transcoded videos" --auto-scroll --width 1024 --height 640 
+) | zenity --text-info --text "Deleting Originals of transcoded videos" --title "Deleting Originals of transcoded videos" --auto-scroll --width 1024 --height 640 

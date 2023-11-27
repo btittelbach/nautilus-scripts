@@ -6,8 +6,8 @@
 local default_prepend="Overall Context"
 local default_append='Taken Where'
 local default_append2='Taken By Whom'
-img_prepend="$(zenity --title="Prepend context to filename" --entry --entry-text="${common_files_prefix:-$default_prepend}")" || exit 1
-img_append="$(zenity --title="Append to filename" --entry --entry-text="$default_append")" || exit 1
+#img_prepend="$(zenity --title="Prepend context to filename" --entry --entry-text="${common_files_prefix:-$default_prepend}")" || exit 1
+#img_append="$(zenity --title="Append to filename" --entry --entry-text="$default_append")" || exit 1
 img_append2="$(zenity --title="Append fotographer to filename" --entry --entry-text="$default_append2")" || exit 1
 [[ $img_prepend == $default_prepend ]] && img_prepend=""
 [[ $img_append == $default_append ]] && img_append=""
