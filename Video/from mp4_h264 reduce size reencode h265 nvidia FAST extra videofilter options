@@ -39,7 +39,7 @@ for mp4 in "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"; do
   wait $ffmpegpid ; local ec=$?
   echo -n "" >| "$ffmpegprocesspidstore"
   ## if ffmpeg was not killed and had no error, transfer exif tags and time, otherwise rm dst
-  [[ $ec -eq 0 ]] && exiftool -overwrite_original -extractEmbedded -TagsFromFile "$mp4" "$dst" && touch -r "$mp4" "$dst" || rm -f "$dst"
+  [[ $ec -eq 0 ]] && exiftool -api largefilesupport=1  -overwrite_original -extractEmbedded -TagsFromFile "$mp4" "$dst" && touch -r "$mp4" "$dst" || rm -f "$dst"
   ## if file hast 0 bytes, remove it
   [[ -f "$dst" && ! -s "$dst" ]] && rm -f "$dst"
   [[ -f "$dst" ]] && mv "$dst" "$finaldst"

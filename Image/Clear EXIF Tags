@@ -1,3 +1,3 @@
 #!/bin/zsh
 [[ -x =exiftool ]] || {zenity --error --text "exiftool is not installed"; exit 1}
-exiftool -P -m -All=  "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"
+exiftool -api largefilesupport=1 -P -m -All=  "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"
