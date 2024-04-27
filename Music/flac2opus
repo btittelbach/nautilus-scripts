@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# Copyright 2017 Keefer Rourke <mail@krourke.org>
+## modified by Bernhard Tittelbach, 2022
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCNUMBERLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+
+IFS=$'\n'
+
+which metaflac
+if [ $? -ne 0 ]; then
+    echo "flac tools are not installed. Run \`sudo dnf install flac\` and try again."
+    exit 1
+fi
+which opusenc
+if [ $? -ne 0 ]; then
+    echo "opus-tools is not installed. Run \`sudo dnf install opus-tools\` and try again"
+    exit 1
+fi
+
+# "global" variables
+br=256
+artfile="/tmp/$$.tempart.img"
+cleanup=0
+hasart=0
+
+# cleanup actions
+cleanup() {
+    if [ -f "$artfile" ]; then
+        rm "$artfile"
+    fi
+}
+
+# check script usage
+[ -z "$1" ] && echo "File path is required." && exit 2;
+
+# parse each flac file in the specified directory and output to opus format
+for f in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS; do
+    # give output correct extension
+    basefilename=${f##*/}
+    wd="$(dirname ${f})"
+
+    # export metadata; I don't necessarily trust or want every single tag in
+    # the exported file, so let's grab the relevant tags and make opus ignore
+    # extraneous data
+    TITLE=$(metaflac "$f" --show-tag=TITLE | sed s/.*=//g)
+    ARTIST=$(metaflac "$f" --show-tag=ARTIST | sed s/.*=//g)
+    ALBUMARTIST=$(metaflac "$f" --show-tag=ALBUMARTIST | sed s/.*=//g)
+    ALBUM=$(metaflac "$f" --show-tag=ALBUM | sed s/.*=//g)
+    DATE=$(metaflac  "$f" --show-tag=DATE | sed s/.*=//g)
+    GENRE=$(metaflac "$f" --show-tag=GENRE | sed s/.*=//g)
+    DISCNUMBER=$(metaflac "$f" --show-tag=DISCNUMBER | sed s/.*=//g)
+    TRACKNUMBER=$(metaflac "$f" --show-tag=TRACKNUMBER | sed s/.*=//g)
+    TRACKTOTAL=$(metaflac "$f" --show-tag=TRACKTOTAL | sed s/.*=//g)
+    LYRICS=$(metaflac "$f" --show-tag=LYRICS | sed s/.*=//g)
+
+    # for the curious I suppose
+    #metaflac "$f" --export-tags-to=-
+
+    # if we don't already have an art file, let's try to extract one from the
+    # current flac file
+    if [ $hasart -eq 0 ]; then
+        metaflac "$f" --export-picture-to="$artfile"
+        hasart=1
+        cleanup=1
+    fi
+
+    # convert flac via opusenc and tag the new file; pictures should be copied
+    # automagically
+    opusenc --vbr --bitrate "$br" --discard-comments --date "$DATE" \
+    --title "$TITLE" --artist "$ARTIST" --album "$ALBUM" --genre "$GENRE" \
+    --comment "ALBUMARTIST=$ALBUMARTIST" --comment "DISCNUMBER=$DISCNUMBER" \
+    --comment "TRACKNUMBER=$TRACKNUMBER" --comment "TRACKTOTAL=$TRACKTOTAL" \
+    --comment "LYRICS=$LYRICS" \
+    "$f" "$wd/${basefilename/%flac/opus.ogg}"
+
+    # cleanup and exit if failure
+    if [ $? -ne 0 ]; then
+        cleanup
+        exit 1
+    fi
+done
+
+# move the temp artfile to destination with meaningful extension
+if [ -f "$artfile" ]; then
+    mime=$(file -b --mime-type "$artfile" | sed 's/.*\///g')
+    cp "$artfile" "$wd/front.$mime"
+fi
+
+cleanup
+exit 0

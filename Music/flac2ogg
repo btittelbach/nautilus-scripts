@@ -1,0 +1,14 @@
+#!/bin/bash
+
+IFS=$'\n'
+
+which oggenc
+if [ $? -ne 0 ]; then
+    echo "orgvorbis-tools is not installed"
+    exit 1
+fi
+
+q=7
+oggenc -q $q "$@"
+
+exit 0
