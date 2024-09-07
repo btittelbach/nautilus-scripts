@@ -1,0 +1,22 @@
+#!/bin/zsh
+type exiftool || exit 1
+type zenity || exit 1
+exif_artist="$(zenity --title="Photographer Name" --entry --entry-text='')" || exit 1
+exif_license_str=$(echo 'CC-BY-SA
+-Copyright="This work is licensed under the Creative Commons Attribution ShareAlike 4.0 International License. To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042 USA." -XMP-cc:License="https://creativecommons.org/licenses/by-sa/4.0/"
+CC-BY
+-Copyright="This work is licensed under the Creative Commons Attribution ShareAlike 4.0 International License. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042 USA." -XMP-cc:License="https://creativecommons.org/licenses/by/4.0/"
+CC-BY-NC
+-Copyright="This work is licensed under the Creative Commons Attribution ShareAlike 4.0 International License. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042 USA." -XMP-cc:License="https://creativecommons.org/licenses/by-nc/4.0/"
+CC-BY-ND
+-Copyright="This work is licensed under the Creative Commons Attribution ShareAlike 4.0 International License. To view a copy of this license, visit https://creativecommons.org/licenses/by-nd/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042 USA." -XMP-cc:License="https://creativecommons.org/licenses/by-nd/4.0/"
+CC-BY-NC-ND
+-Copyright="This work is licensed under the Creative Commons Attribution ShareAlike 4.0 International License. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042 USA." -XMP-cc:License="https://creativecommons.org/licenses/by-nc-nd/4.0/"
+CC-BY-NC-SA
+-Copyright="This work is licensed under the Creative Commons Attribution ShareAlike 4.0 International License. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042 USA." -XMP-cc:License="https://creativecommons.org/licenses/by-nc-sa/4.0/"' | zenity --width=1400 --height=600 --list --title "Choose License" --column "License Name" --column "Arguments" --print-column=2 --separator=' ' --editable) || exit 1
+local exif_license=(${(z)exif_license_str})
+
+exiftool -api largefilesupport=1 -P -m -overwrite_original -Artist=${exif_artist} ${exif_license} "${(f)NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"
+
+exit 0
+
