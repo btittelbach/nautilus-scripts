@@ -1,6 +1,10 @@
 #!/bin/bash
 IFS=$'\n'
+DF=$(mktemp)
 for picture in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS; do
 	jpg_file=`echo "$picture" | sed 's/\.\w*$/.jpg/'`
-	/usr/bin/convert -quality 75 "$picture" jpeg:"$jpg_file"
+  touch -m -c -r "$picture" $DF
+	/usr/bin/convert -quality 85 "$picture" jpeg:"$jpg_file"
+  touch -m -c -r $DF "$jpg_file"  ## two-step touch in case original picture also has jpg extension even tough it is another format
 done
+rm "$DF"
