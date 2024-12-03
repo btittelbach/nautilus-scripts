@@ -5,7 +5,7 @@ type zenity || exit 1
 zmodload -a  zsh/stat    zstat
 (
 for x in *.(x265|vp9|av1|x265opus|x265aac|hevc_nvenc).(mp4|webv|mkv); do
-  y=( "${x:r:r}".(MOV|mov|MP4|mp4|MTS|mts)([1]N));
+  y=( "${x:r:r}".(MOV|mov|MP4|mp4|MTS|mts|mkv)([1]N));
   if [[ -n $y && -s $x && -f $y ]]; then
     if fuser -s "$y"; then
         echo "Newly transcoded video is in use and may still be transcoding. Skipping $x"
